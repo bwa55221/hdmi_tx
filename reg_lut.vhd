@@ -18,8 +18,8 @@ begin
     begin
 
         case count is
-            when X"00"  =>  address <= X"98"; data <= X"03";
-            when X"01"  =>  address <= X"41"; data <= X"01";
+            when X"00"  =>  address <= X"41"; data <= X"10";    -- enable power up
+            when X"01"  =>  address <= X"98"; data <= X"03";    -- set for proper operation
 
             -- X"AF" register can disable HDCP encryption
 

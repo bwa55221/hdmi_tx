@@ -61,6 +61,7 @@ constant LUT_REG_COUNT_MAX  : natural := 1;
 
 -- STATUS SIGNALS   
 signal i2c_readback_error   : std_logic;
+signal i2c_readback_request : std_logic;
 signal i2c_busy_prev        : std_logic;
 signal delay                : natural;
 
@@ -118,16 +119,17 @@ begin
         if SYS_CLK'event and SYS_CLK = '1' then
             if SYS_RST_n = '0' then
 
-                lut_count           <= X"FF";
+                lut_count               <= X"FF";
 
-                i2c_reset_n         <= '0';
-                i2c_ena             <= '0';
-                i2c_rw              <= '1';
+                i2c_reset_n             <= '0';
+                i2c_ena                 <= '0';
+                i2c_rw                  <= '1';
 
-                i2c_readback_error  <= '0';
+                i2c_readback_request    <= '0';
+                i2c_readback_error      <= '0';
 
-                delay               <= 0;
-                ADV7513_STATE       <= IDLE;
+                delay                   <= 0;
+                ADV7513_STATE           <= IDLE;
 
             else
                 
@@ -146,16 +148,20 @@ begin
                         end if;
 
                     when START =>
-                        lut_count <= X"00";                  -- reset counter for register lut
-                        ADV7513_STATE <= ISSUE_WRITE_CMD;    -- send command to write first register
+                        lut_count       <= X"00";                  -- reset counter for register lut
+                        i2c_rw          <= '0';
+                        ADV7513_STATE   <= ISSUE_WRITE_CMD;    -- send command to write first register
 
                     when ISSUE_WRITE_CMD =>
                         i2c_ena         <= '1';             -- issue command
-                        i2c_rw          <= '0';             -- write
                         i2c_addr        <= ADV7513_I2C_ADDR;
                         i2c_data_wr     <= lut_address;
 
-                        ADV7513_STATE   <= WAIT_FOR_BUSY_ASSERT;
+                        if i2c_rw = '1' then
+                            ADV7513_STATE   <= REGISTER_READBACK;
+                        else
+                            ADV7513_STATE   <= WAIT_FOR_BUSY_ASSERT;
+                        end if;
                     
                     when WAIT_FOR_BUSY_ASSERT =>
                         
@@ -165,34 +171,39 @@ begin
                         end if;
 
                     WHEN WRITE_REG_ADDR =>
-
-                        i2c_data_wr     <= lut_data; -- latch new data in for writing in next state
-
+                        if i2c_readback_request = '1' then
+                            i2c_rw          <= '1';
+                        else
+                            i2c_data_wr     <= lut_data;             -- latch new data in for writing in next state
+                        end if;
+                        
                         -- falling edge state transition
                         if (i2c_busy = '0' and i2c_busy_prev = '1') then
-                            ADV7513_STATE   <= WRITE_REG_DATA;
+                            if i2c_readback_request = '1' then
+                                ADV7513_STATE   <= ISSUE_WRITE_CMD;
+                            else
+                                ADV7513_STATE   <= WRITE_REG_DATA;
+                            end if;
                         end if;
 
                     when WRITE_REG_DATA =>
+                        i2c_ena                 <= '0';         -- forces stop condition after writing data
+                        i2c_readback_request    <= '1';
+                        i2c_rw                  <= '0'; 
 
-                        i2c_rw      <= '1';
-
-                        if (i2c_busy = '0' and i2c_busy_prev = '1') then
-                            ADV7513_STATE       <= REQUEST_READBACK;
+                        if (i2c_busy = '0' and i2c_busy_prev = '1' and i2c_readback_request = '1') then
+                            ADV7513_STATE       <= ISSUE_WRITE_CMD;
                         end if;
                     
                     when REQUEST_READBACK =>
-
-                        i2c_ena         <= '0';
-
                         if (i2c_busy = '1' and i2c_busy_prev = '0') then
                             ADV7513_STATE   <= REGISTER_READBACK;
                         end if;
 
                     when REGISTER_READBACK =>
+                        i2c_ena <= '0';
 
                         if (i2c_busy = '0' and i2c_busy_prev = '1') then
-
                             if i2c_data_rd /= lut_data then
                                 i2c_readback_error <= '1';
                                 ADV7513_STATE <= ERROR_STATE;
@@ -202,9 +213,12 @@ begin
                         end if;
 
                     when LOAD_NEXT_LUT_REG =>
+                        i2c_rw                  <= '0';
+                        i2c_readback_request    <= '0';
+
                         if to_integer(unsigned(lut_count)) < LUT_REG_COUNT_MAX then
                             lut_count <= lut_count + X"01";
-                            ADV7513_STATE   <= WRITE_REG_ADDR;
+                            ADV7513_STATE   <= ISSUE_WRITE_CMD;
                         else
                             ADV7513_STATE   <= FINISHED;
                         end if;
