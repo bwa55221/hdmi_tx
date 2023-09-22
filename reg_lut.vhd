@@ -18,8 +18,10 @@ begin
     begin
 
         case count is
-            when X"00"  =>  address <= X"41"; data <= X"01";
-            when X"01"  =>  address <= X"98"; data <= X"03";
+            when X"00"  =>  address <= X"98"; data <= X"03";
+            when X"01"  =>  address <= X"41"; data <= X"01";
+
+            -- X"AF" register can disable HDCP encryption
 
             -- catch all for compile during test
             when others =>  address <= X"FF"; data <= X"FF";

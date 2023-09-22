@@ -1,0 +1,30 @@
+WHEN get_data =>                               --state for conducting this transaction
+  busy_prev <= i2c_busy;                       --capture the value of the previous i2c busy signal
+  IF(busy_prev = '0' AND i2c_busy = '1') THEN  --i2c busy just went high
+    busy_cnt := busy_cnt + 1;                    --counts the times busy has gone from low to high during transaction
+  END IF;
+  CASE busy_cnt IS                             --busy_cnt keeps track of which command we are on
+    WHEN 0 =>                                  --no command latched in yet
+      i2c_ena <= '1';                            --initiate the transaction
+      i2c_addr <= slave_addr;                    --set the address of the slave
+      i2c_rw <= '0';                             --command 1 is a write
+      i2c_data_wr <= data_to_write;              --data to be written
+    WHEN 1 =>                                  --1st busy high: command 1 latched, okay to issue command 2
+      i2c_rw <= '1';                             --command 2 is a read (addr stays the same)
+    WHEN 2 =>                                  --2nd busy high: command 2 latched, okay to issue command 3
+      i2c_rw <= '0';                             --command 3 is a write
+      i2c_data_wr <= new_data_to_write;          --data to be written
+      IF(i2c_busy = '0') THEN                    --indicates data read in command 2 is ready
+        data(15 DOWNTO 8) <= i2c_data_rd;          --retrieve data from command 2
+      END IF;
+    WHEN 3 =>                                  --3rd busy high: command 3 latched, okay to issue command 4
+      i2c_rw <= '1';                             --command 4 is read (addr stays the same)
+    WHEN 4 =>                                  --4th busy high: command 4 latched, ready to stop
+      i2c_ena <= '0';                            --deassert enable to stop transaction after command 4
+      IF(i2c_busy = '0') THEN                    --indicates data read in command 4 is ready
+        data(7 DOWNTO 0) <= i2c_data_rd;           --retrieve data from command 4
+        busy_cnt := 0;                             --reset busy_cnt for next transaction
+        state <= home;                             --transaction complete, go to next state in design
+      END IF;
+    WHEN OTHERS => NULL;
+  END CASE;
