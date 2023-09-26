@@ -11,7 +11,8 @@ entity adv7513_driver is
         SYS_CLK         : in std_logic;
         SYS_RST_n       : in std_logic;
         ADV_I2C_SCL     : inout std_logic;
-        ADV_I2C_SDA     : inout std_logic
+        ADV_I2C_SDA     : inout std_logic;
+        CONFIG_STATUS   : out std_logic
     );
     end adv7513_driver;
 
@@ -19,7 +20,7 @@ architecture rtl of adv7513_driver is
 
     component i2c_master is
         generic(
-            input_clk : INTEGER := 50_000_000; --input clock speed from user logic in Hz
+            input_clk : INTEGER := 165_000_000; --input clock speed from user logic in Hz
             bus_clk   : INTEGER := 400_000);   --speed the i2c bus (scl) will run at in Hz
 
         port(
@@ -131,6 +132,8 @@ begin
                 delay                   <= 0;
                 ADV7513_STATE           <= IDLE;
 
+                CONFIG_STATUS           <= '0';
+
             else
                 
                 i2c_busy_prev   <= i2c_busy; -- update this on every rising clock edge
@@ -216,7 +219,7 @@ begin
                         i2c_rw                  <= '0';
                         i2c_readback_request    <= '0';
 
-                        if to_integer(unsigned(lut_count)) < LUT_REG_COUNT_MAX then
+                        if to_integer(unsigned(lut_count)) < LUT_REG_COUNT_MAX - 1 then
                             lut_count <= lut_count + X"01";
                             ADV7513_STATE   <= ISSUE_WRITE_CMD;
                         else
@@ -224,7 +227,8 @@ begin
                         end if;
 
                     when FINISHED =>
-                        null;
+                        CONFIG_STATUS           <= '1'; -- indicate configuration complete
+                        i2c_reset_n             <= '0'; -- turn off i2c
                         -- stop;
 
                     when ERROR_STATE =>

@@ -30,7 +30,7 @@ begin
             
             -- set video input mode registers
             when X"09"  =>  address <= X"15"; data <= X"20";     -- input 444 (RGB or YcrCb) with separate syncs, 48 kHz fs
-            when X"0A"  =>  address <= X"16"; data <= X"30";     -- output format 444, 24 bit input
+            when X"0A"  =>  address <= X"16"; data <= X"30";     -- output format 444, 24 bit input RGB; VS/HS high polarity
 
             -- set video output mode registers
             when X"0B"  => address <= X"18"; data <= X"46";     -- disable CSC
