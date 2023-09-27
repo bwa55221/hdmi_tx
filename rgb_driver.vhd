@@ -3,6 +3,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 -- use std.env.all;
 
+-- https://github.com/mfro0/deca_mem/blob/master/vga_generator.vhd
+
 entity rgb_driver is 
     port (
         rgb_clk_i               : in std_logic;
@@ -138,8 +140,6 @@ begin
 rgb_pixel_data_o <= std_logic_vector(to_unsigned(RED, 8)) &
                     std_logic_vector(to_unsigned(GREEN, 8)) & 
                     std_logic_vector(to_unsigned(BLUE, 8));
-
-
 
 p_horizontal    : process(all)
 begin

@@ -20,7 +20,7 @@ architecture rtl of adv7513_driver is
 
     component i2c_master is
         generic(
-            input_clk : INTEGER := 165_000_000; --input clock speed from user logic in Hz
+            input_clk : INTEGER := 148_500_000; --input clock speed from user logic in Hz
             bus_clk   : INTEGER := 400_000);   --speed the i2c bus (scl) will run at in Hz
 
         port(
@@ -58,7 +58,7 @@ signal lut_count_w, lut_address_w, lut_data_w : std_logic_vector(7 downto 0);
 
 -- CONSTANTS
 constant ADV7513_I2C_ADDR : std_logic_vector(6 downto 0) := "0111001"; -- 0x72
-constant LUT_REG_COUNT_MAX  : natural := 13;
+constant LUT_REG_COUNT_MAX  : natural := 15;
 
 -- STATUS SIGNALS   
 signal i2c_readback_error   : std_logic;
