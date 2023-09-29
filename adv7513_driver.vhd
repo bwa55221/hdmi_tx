@@ -1,10 +1,9 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all; -- use for all other maths and "to_integer()"
--- use IEEE.std_logic_arith.all;
 use IEEE.std_logic_unsigned.all; -- get the "+" operator for std_logic_vector
 use work.all;
--- use std.env.all;
+use work.custom_pkg.all;
 
 entity adv7513_driver is 
     port (
@@ -18,25 +17,24 @@ entity adv7513_driver is
 
 architecture rtl of adv7513_driver is
 
-    component i2c_master is
-        generic(
-            input_clk : INTEGER := 148_500_000; --input clock speed from user logic in Hz
-            bus_clk   : INTEGER := 400_000);   --speed the i2c bus (scl) will run at in Hz
+    component i2c_controller is
+        port (
+            IIC_RST_N       : in std_logic;
+            IIC_CLK         : in std_logic;
+            IIC_SDA         : inout std_logic;
+            IIC_SCL         : inout std_logic;
+    
+            WRITE_REQ       : in std_logic;
+            WRITE_DONE      : out std_logic;
+    
+            READ_REQ        : in std_logic;
+            READ_DONE       : out std_logic;
 
-        port(
-            clk       : IN     STD_LOGIC;                    --system clock
-            reset_n   : IN     STD_LOGIC;                    --active low reset
-            ena       : IN     STD_LOGIC;                    --latch in command
-            addr      : IN     STD_LOGIC_VECTOR(6 DOWNTO 0); --address of target slave
-            rw        : IN     STD_LOGIC;                    --'0' is write, '1' is read
-            data_wr   : IN     STD_LOGIC_VECTOR(7 DOWNTO 0); --data to write to slave
-            busy      : OUT    STD_LOGIC;                    --indicates transaction in progress
-            data_rd   : OUT    STD_LOGIC_VECTOR(7 DOWNTO 0); --data read from slave
-            ack_error : BUFFER STD_LOGIC;                    --flag if improper acknowledge from slave
-            sda       : INOUT  STD_LOGIC;                    --serial data output of i2c bus
-            scl       : INOUT  STD_LOGIC                     --serial clock output of i2c bus
+            IIC_ADDR        : in std_logic_vector(6 downto 0);
+            IIC_DATA        : inout iic_data_array;
+            IIC_CTRL_READY  : out std_logic
         );
-    end component;
+        end component;
 
     component reg_lut is
         port(
@@ -46,33 +44,42 @@ architecture rtl of adv7513_driver is
         );
         end component;
 
--- i2c master wires
-signal i2c_reset_n, i2c_ena, i2c_rw : std_logic := '1';
-signal i2c_busy, i2c_ack_error : std_logic;
-signal i2c_addr : std_logic_vector(6 downto 0);
-signal i2c_data_wr, i2c_data_rd : std_logic_vector(7 downto 0);
 
 -- LUT wires
 signal lut_count, lut_address, lut_data : std_logic_vector(7 downto 0);
 signal lut_count_w, lut_address_w, lut_data_w : std_logic_vector(7 downto 0);
 
+-- iic controller wires
+signal  WRITE_REQ_w,
+        WRITE_DONE_w,
+        READ_REQ_w,
+        READ_DONE_w,
+        IIC_CTRL_READY_w     : std_logic;
+
+signal IIC_ADDR_w   : std_logic_vector(6 downto 0);
+signal IIC_DATA_w   : iic_data_array;
+
+
 -- CONSTANTS
 constant ADV7513_I2C_ADDR : std_logic_vector(6 downto 0) := "0111001"; -- 0x72
-constant LUT_REG_COUNT_MAX  : natural := 15;
-
--- STATUS SIGNALS   
-signal i2c_readback_error   : std_logic;
-signal i2c_readback_request : std_logic;
-signal i2c_busy_prev        : std_logic;
-signal delay                : natural;
+constant LUT_REG_COUNT_MAX  : natural := 14;
 
 -- state machines
 type state_type_adv7513 is (IDLE,
-    START, ISSUE_WRITE_CMD, WAIT_FOR_BUSY_ASSERT, 
-    WRITE_REG_ADDR, WRITE_REG_DATA,
-    REQUEST_READBACK, REGISTER_READBACK,
-    LOAD_NEXT_LUT_REG, ERROR_STATE, FINISHED);
+                            CONFIGURE,
+                            MONITOR);
 signal ADV7513_STATE : state_type_adv7513;
+
+type configuration_state_type is (
+                                    IDLE,
+                                    WRITE_OUT_LUT,
+                                    WAIT_FOR_WRITE_DONE,
+                                    READBACK_REGISTER,
+                                    WAIT_FOR_READ_DONE,
+                                    LOAD_NEXT,
+                                    DONE,
+                                    ERROR);
+signal CONFIGURATION_STATE : configuration_state_type;                                    
 
 
 -- simulation signals
@@ -93,20 +100,20 @@ begin
     lut_address         <= lut_address_w;
     lut_data            <= lut_data_w;
 
-   i2c_master_0 : component i2c_master
-    port map (
-        clk         => SYS_CLK,
-        reset_n     => i2c_reset_n,
-        ena         => i2c_ena,
-        addr        => i2c_addr,
-        rw          => i2c_rw,
-        data_wr     => i2c_data_wr,
-        busy        => i2c_busy,
-        data_rd     => i2c_data_rd,
-        ack_error   => i2c_ack_error,
-        sda         => ADV_I2C_SDA, -- connect these directly to top level outputs
-        scl         => ADV_I2C_SCL  -- connect these directly to top level outputs
-    );
+    i2c_controller0 : component i2c_controller
+        port map (
+            IIC_RST_N       => SYS_RST_n,
+            IIC_CLK         => SYS_CLK,
+            IIC_SDA         => ADV_I2C_SDA,
+            IIC_SCL         => ADV_I2C_SCL,
+            WRITE_REQ       => WRITE_REQ_w,
+            WRITE_DONE      => WRITE_DONE_w,
+            READ_REQ        => READ_REQ_w,
+            READ_DONE       => READ_DONE_w,
+            IIC_ADDR        => IIC_ADDR_w,
+            IIC_DATA        => IIC_DATA_w,
+            IIC_CTRL_READY  => IIC_CTRL_READY_w
+        );
 
     reg_lut_0 : component reg_lut
     port map (
@@ -120,123 +127,81 @@ begin
         if SYS_CLK'event and SYS_CLK = '1' then
             if SYS_RST_n = '0' then
 
-                lut_count               <= X"FF";
-
-                i2c_reset_n             <= '0';
-                i2c_ena                 <= '0';
-                i2c_rw                  <= '1';
-
-                i2c_readback_request    <= '0';
-                i2c_readback_error      <= '0';
-
-                delay                   <= 0;
-                ADV7513_STATE           <= IDLE;
+                lut_count               <= X"00";
+                WRITE_REQ_w             <= '0';
+                READ_REQ_w              <= '0';
+                
+                ADV7513_STATE           <= CONFIGURE;
+                CONFIGURATION_STATE     <= IDLE;
 
                 CONFIG_STATUS           <= '0';
 
             else
-                
-                i2c_busy_prev   <= i2c_busy; -- update this on every rising clock edge
 
                 case ADV7513_STATE is 
-
+                    
                     when IDLE =>
-                        i2c_reset_n     <= '1';
-
-                        -- add some delay to make sure i2c master is stabilized out of reset
-                        if delay = 250 then
-                            ADV7513_STATE   <= START;
-                        else
-                            delay <= delay + 1;
-                        end if;
-
-                    when START =>
-                        lut_count       <= X"00";                  -- reset counter for register lut
-                        i2c_rw          <= '0';
-                        ADV7513_STATE   <= ISSUE_WRITE_CMD;    -- send command to write first register
-
-                    when ISSUE_WRITE_CMD =>
-                        i2c_ena         <= '1';             -- issue command
-                        i2c_addr        <= ADV7513_I2C_ADDR;
-                        i2c_data_wr     <= lut_address;
-
-                        if i2c_rw = '1' then
-                            ADV7513_STATE   <= REGISTER_READBACK;
-                        else
-                            ADV7513_STATE   <= WAIT_FOR_BUSY_ASSERT;
-                        end if;
-                    
-                    when WAIT_FOR_BUSY_ASSERT =>
-                        
-                        -- rising edge state transition
-                        if (i2c_busy = '1' and i2c_busy_prev = '0') then
-                            ADV7513_STATE   <= WRITE_REG_ADDR;
-                        end if;
-
-                    WHEN WRITE_REG_ADDR =>
-                        if i2c_readback_request = '1' then
-                            i2c_rw          <= '1';
-                        else
-                            i2c_data_wr     <= lut_data;             -- latch new data in for writing in next state
-                        end if;
-                        
-                        -- falling edge state transition
-                        if (i2c_busy = '0' and i2c_busy_prev = '1') then
-                            if i2c_readback_request = '1' then
-                                ADV7513_STATE   <= ISSUE_WRITE_CMD;
-                            else
-                                ADV7513_STATE   <= WRITE_REG_DATA;
-                            end if;
-                        end if;
-
-                    when WRITE_REG_DATA =>
-                        i2c_ena                 <= '0';         -- forces stop condition after writing data
-                        i2c_readback_request    <= '1';
-                        i2c_rw                  <= '0'; 
-
-                        if (i2c_busy = '0' and i2c_busy_prev = '1' and i2c_readback_request = '1') then
-                            ADV7513_STATE       <= ISSUE_WRITE_CMD;
-                        end if;
-                    
-                    when REQUEST_READBACK =>
-                        if (i2c_busy = '1' and i2c_busy_prev = '0') then
-                            ADV7513_STATE   <= REGISTER_READBACK;
-                        end if;
-
-                    when REGISTER_READBACK =>
-                        i2c_ena <= '0';
-
-                        if (i2c_busy = '0' and i2c_busy_prev = '1') then
-                            if i2c_data_rd /= lut_data then
-                                i2c_readback_error <= '1';
-                                ADV7513_STATE <= ERROR_STATE;
-                            else
-                                ADV7513_STATE <= LOAD_NEXT_LUT_REG;
-                            end if;
-                        end if;
-
-                    when LOAD_NEXT_LUT_REG =>
-                        i2c_rw                  <= '0';
-                        i2c_readback_request    <= '0';
-
-                        if to_integer(unsigned(lut_count)) < LUT_REG_COUNT_MAX - 1 then
-                            lut_count <= lut_count + X"01";
-                            ADV7513_STATE   <= ISSUE_WRITE_CMD;
-                        else
-                            ADV7513_STATE   <= FINISHED;
-                        end if;
-
-                    when FINISHED =>
-                        CONFIG_STATUS           <= '1'; -- indicate configuration complete
-                        i2c_reset_n             <= '0'; -- turn off i2c
-                        -- stop;
-
-                    when ERROR_STATE =>
                         null;
-                        -- stop;
 
+                    when CONFIGURE  =>
+
+                        case CONFIGURATION_STATE is 
+                            when IDLE   =>
+                                lut_count   <= X"00";
+                                
+                                if IIC_CTRL_READY_w then
+                                    CONFIGURATION_STATE <= WRITE_OUT_LUT;
+                                end if;
+
+                            when WRITE_OUT_LUT          =>
+                                IIC_ADDR_w              <= ADV7513_I2C_ADDR;
+                                IIC_DATA_w(0)           <= lut_address_w;
+                                IIC_DATA_w(1)           <= lut_data_w;
+                                WRITE_REQ_w             <= '1';
+                                CONFIGURATION_STATE     <= WAIT_FOR_WRITE_DONE;
+
+                            when WAIT_FOR_WRITE_DONE    =>
+                                WRITE_REQ_w             <= '0';
+
+                                if WRITE_DONE_w then
+                                    CONFIGURATION_STATE <= READBACK_REGISTER;
+                                end if;
+                            
+                            when READBACK_REGISTER      =>
+                                READ_REQ_w              <= '1';
+                                CONFIGURATION_STATE     <= WAIT_FOR_READ_DONE;
+
+                            when WAIT_FOR_READ_DONE     =>
+                                READ_REQ_w              <= '0';
+
+                                if READ_DONE_w then
+                                    if IIC_DATA_w(1) = lut_data_w then
+
+                                        if to_integer(unsigned(lut_count)) = LUT_REG_COUNT_MAX then
+                                            CONFIGURATION_STATE <= DONE;
+                                        else
+                                            CONFIGURATION_STATE <= LOAD_NEXT;
+                                        end if;
+                                    else
+                                        CONFIGURATION_STATE <= ERROR;
+                                    end if;
+                                end if;
+                            
+                            when LOAD_NEXT              =>
+                                lut_count               <= lut_count + X"01";
+                                CONFIGURATION_STATE     <= WRITE_OUT_LUT;
+
+                            when DONE                   =>
+                                ADV7513_STATE           <= IDLE;
+                                CONFIG_STATUS           <= '1';
+
+                            when ERROR                  =>
+                                null;   
+                        end case;                            
+
+                    when MONITOR    =>
+                        null;
                 end case;
-
             end if;
         end if;
     end process;

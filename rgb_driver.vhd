@@ -76,7 +76,7 @@ constant video_timings  : video_timings_array_type :=
 );
 --###############################################################################
 
-constant current_timing     : video_timing_type := video_timings(4); -- 1920 x 1080 selected as current timing information
+constant current_timing     : video_timing_type := video_timings(5); -- 1920 x 1080 selected as current timing information
 
 signal RED          : natural range 0 to 255 := 0;
 signal GREEN        : natural range 0 to 255 := 0;
@@ -143,11 +143,11 @@ rgb_pixel_data_o <= std_logic_vector(to_unsigned(RED, 8)) &
 
 p_horizontal    : process(all)
 begin
-    if not rgb_rst_n_i then
+    if (not rgb_rst_n_i) or (not transceiver_ready) then
         h_act           <= '0';
         h_act_d         <= '0';
         h_count         <= 0;
-        rgb_hsync_o     <= '1';
+        rgb_hsync_o     <= '0'; -- flipped
 
     elsif rising_edge(rgb_clk_i) then
 
@@ -172,9 +172,9 @@ begin
         end if;
 
         if hs_end and not h_max then
-            rgb_hsync_o <= '1';
+            rgb_hsync_o <= '0'; -- flipped
         else
-            rgb_hsync_o <= '0';
+            rgb_hsync_o <= '1'; -- flipped
         end if;
 
         if hr_start then
@@ -188,11 +188,11 @@ end process p_horizontal;
 
 p_vertical : process(all)
 begin
-    if not rgb_rst_n_i then
+    if (not rgb_rst_n_i) or (not transceiver_ready) then
 
         v_act_d         <= '0';
         v_count         <= 0;
-        rgb_vsync_o     <= '1';
+        rgb_vsync_o     <= '0'; -- change to 0 from 1 (basically flipping polarity on vsync)
         v_act           <= '0';
 
     elsif rising_edge(rgb_clk_i) then
@@ -201,14 +201,15 @@ begin
 
             if v_max then
                 v_count <= 0;
+                -- ONE_FRAME_DONE  <= '1';
             else
                 v_count <= v_count + 1;
             end if;
 
             if vs_end and not v_max then
-                rgb_vsync_o <= '1';
+                rgb_vsync_o <= '0'; -- change to 0 from 1
             else
-                rgb_vsync_o <= '0';
+                rgb_vsync_o <= '1'; -- change to 1 from 0 
             end if;
 
             if vr_start then
@@ -225,7 +226,7 @@ end process p_vertical;
 p_pattern   : process(all)
     -- variable p_x    : std_ulogic_vector(7 downto 0);
 begin
-    if not rgb_rst_n_i then
+    if (not rgb_rst_n_i) or (not transceiver_ready) then
         rgb_data_enable_o   <= '0';
         rgb_data_en_pre     <= '0';         --- add this signal
 
