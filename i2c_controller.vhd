@@ -47,11 +47,11 @@ type i2c_state_type is (ENABLE_I2C_MASTER, IDLE, WRITE_BUS, READ_BUS);
 signal CONTROL_STATE    : i2c_state_type;
 
 type i2c_write_state_type is (IDLE, START, WAIT_FOR_BUSY_ASSERT, WRITE_FIRST_BYTE,
-                            WRITE_SECOND_BYTE, DONE);
+                            WRITE_SECOND_BYTE, DONE, CLEANUP);
 signal WRITE_STATE      : i2c_write_state_type;
 
 type i2c_read_state_type is (IDLE, START, WAIT_FOR_BUSY_ASSERT, WRITE_REG_ADDR,
-                            REPEATED_START, READBACK, DONE);
+                            REPEATED_START, READBACK, DONE, CLEANUP);
 signal READ_STATE       : i2c_read_state_type;
 
 signal i2c_reset_n, i2c_ena, i2c_rw : std_logic;
@@ -125,7 +125,9 @@ begin
 
                 if WRITE_REQ then
                     CONTROL_STATE   <= WRITE_BUS;
-                elsif READ_REQ then
+                end if;
+                
+                if READ_REQ then
                     CONTROL_STATE   <= READ_BUS;
                 end if;
 
@@ -165,20 +167,24 @@ begin
                         end if;
 
                     when DONE =>
-                        WRITE_STATE     <= IDLE;
-                        CONTROL_STATE   <= IDLE;
+                        WRITE_STATE     <= CLEANUP;
 
                         if i2c_ack_error = '0' then
                             WRITE_DONE  <= '1';
                         end if;
                     
+                    when CLEANUP =>
+                        WRITE_DONE      <= '0';
+                        WRITE_STATE     <= IDLE;
+                        CONTROL_STATE   <= IDLE;
+
                 end case;
             
             when READ_BUS   =>
 
                 case READ_STATE is
                     when IDLE       =>
-                        READ_DONE   <= '0';
+                        -- READ_DONE   <= '0';
                         READ_STATE  <= START;
 
                     when START      =>
@@ -214,12 +220,17 @@ begin
                         end if;
 
                     when DONE   =>
-                        READ_STATE      <= IDLE;
-                        CONTROL_STATE   <= IDLE;
+                        READ_STATE      <= CLEANUP;
 
                         if not i2c_ack_error then
                             READ_DONE   <= '1';
                         end if;
+
+                    when CLEANUP    =>
+                        READ_DONE       <= '0';
+                        READ_STATE      <= IDLE;
+                        CONTROL_STATE   <= IDLE;
+
                 end case;
         end case;
     end if;

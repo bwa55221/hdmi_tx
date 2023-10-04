@@ -56,16 +56,19 @@ signal  WRITE_REQ_w,
         READ_DONE_w,
         IIC_CTRL_READY_w     : std_logic;
 
+signal READ_REQ_w_d : std_logic; -- registered read request
+
 signal IIC_ADDR_w   : std_logic_vector(6 downto 0);
 signal IIC_DATA_w   : iic_data_array;
 
 
 -- CONSTANTS
 constant ADV7513_I2C_ADDR : std_logic_vector(6 downto 0) := "0111001"; -- 0x72
-constant LUT_REG_COUNT_MAX  : natural := 14;
+constant LUT_REG_COUNT_MAX  : natural := 30;
 
 -- state machines
 type state_type_adv7513 is (IDLE,
+                            VALIDATE_HPD,
                             CONFIGURE,
                             MONITOR);
 signal ADV7513_STATE : state_type_adv7513;
@@ -79,7 +82,10 @@ type configuration_state_type is (
                                     LOAD_NEXT,
                                     DONE,
                                     ERROR);
-signal CONFIGURATION_STATE : configuration_state_type;                                    
+signal CONFIGURATION_STATE : configuration_state_type;  
+
+type monitor_state_type is (ASSIGN_REGISTER, READ_REGISTER);
+signal MONITOR_STATE    : monitor_state_type;                                    
 
 
 -- simulation signals
@@ -130,9 +136,11 @@ begin
                 lut_count               <= X"00";
                 WRITE_REQ_w             <= '0';
                 READ_REQ_w              <= '0';
+                READ_REQ_w_d            <= '0';
                 
-                ADV7513_STATE           <= CONFIGURE;
+                ADV7513_STATE           <= VALIDATE_HPD;
                 CONFIGURATION_STATE     <= IDLE;
+                MONITOR_STATE           <= ASSIGN_REGISTER;
 
                 CONFIG_STATUS           <= '0';
 
@@ -142,6 +150,23 @@ begin
                     
                     when IDLE =>
                         null;
+
+                    when VALIDATE_HPD   =>
+
+                        IIC_ADDR_w                  <= ADV7513_I2C_ADDR;
+                        IIC_DATA_w(0)               <= X"42";
+                        READ_REQ_w_d                <= '0';
+
+                        if (IIC_CTRL_READY_w = '1' and READ_REQ_w = '0') then
+                            READ_REQ_w_d            <= '1';
+                        end if;
+
+                        READ_REQ_w                  <= READ_REQ_w_d;
+
+                        if READ_DONE_w then
+                            ADV7513_STATE           <= CONFIGURE;
+                        end if;
+
 
                     when CONFIGURE  =>
 
@@ -192,7 +217,8 @@ begin
                                 CONFIGURATION_STATE     <= WRITE_OUT_LUT;
 
                             when DONE                   =>
-                                ADV7513_STATE           <= IDLE;
+                                ADV7513_STATE           <= MONITOR;
+                                IIC_DATA_w(0)           <= X"94";
                                 CONFIG_STATUS           <= '1';
 
                             when ERROR                  =>
@@ -200,7 +226,53 @@ begin
                         end case;                            
 
                     when MONITOR    =>
-                        null;
+                        case MONITOR_STATE is 
+
+                            when ASSIGN_REGISTER        =>
+                                IIC_ADDR_w              <= ADV7513_I2C_ADDR;
+                                MONITOR_STATE           <= READ_REGISTER;
+
+                            when READ_REGISTER          =>
+                                
+                                READ_REQ_w_d            <= '0';
+
+                                if (IIC_CTRL_READY_w = '1' and READ_REQ_w = '0') then
+                                    READ_REQ_w_d          <= '1';
+                                end if;
+
+                                READ_REQ_w              <= READ_REQ_w_d;
+
+                                if READ_DONE_w then
+                                    MONITOR_STATE       <= ASSIGN_REGISTER;
+                                
+                                -- other registers to monitor include:
+                                -- 0XC8 (DDC Controller status and HDCP/EDID Controller Error Codes), pg. 24
+                                -- 0X96 & 0X97 -- see pg. 131
+                                -- 0X94 (interrupt enables pg. 158)
+                                -- 0X9E (monitor PLL lock status, pg. 160)
+                                    
+                                    if IIC_DATA_w(0) = X"94" then
+                                        IIC_DATA_w(0)       <= X"95";
+
+                                    elsif IIC_DATA_w(0) = X"95" then
+                                        IIC_DATA_w(0)       <= X"96";
+
+                                    elsif IIC_DATA_w(0) = X"96" then
+                                        IIC_DATA_w(0)       <= X"97";
+
+                                    elsif IIC_DATA_w(0) = X"97" then
+                                        IIC_DATA_w(0)       <= X"C8";
+
+                                    elsif IIC_DATA_w(0) = X"C8" then
+                                        IIC_DATA_w(0)       <= X"9E";
+
+                                    else
+                                        IIC_DATA_w(0)       <= X"94";
+                                    end if;
+
+                                end if;
+                        end case;
+
                 end case;
             end if;
         end if;
