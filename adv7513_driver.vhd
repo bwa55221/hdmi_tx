@@ -64,7 +64,7 @@ signal IIC_DATA_w   : iic_data_array;
 
 -- CONSTANTS
 constant ADV7513_I2C_ADDR : std_logic_vector(6 downto 0) := "0111001"; -- 0x72
-constant LUT_REG_COUNT_MAX  : natural := 30;
+constant LUT_REG_COUNT_MAX  : natural := 15;
 
 -- state machines
 type state_type_adv7513 is (IDLE,

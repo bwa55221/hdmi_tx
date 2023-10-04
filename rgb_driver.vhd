@@ -64,7 +64,7 @@ constant video_timings  : video_timings_array_type :=
         v_total => 1124, v_sync => 4, v_start => 40, v_end => 1120
     ),
     (
-        -- 1920x1080p60 148.5MHZ
+        -- 1920x1080p60 148.5MHZ                        -- testing this results in 1918 x 1075 resolution reported by monitor LG 34UM58
         h_total => 2199, h_sync => 88, h_start => 191, h_end => 2109,
         v_total => 1124, v_sync => 4, v_start => 45, v_end => 1120
     ),
@@ -76,7 +76,7 @@ constant video_timings  : video_timings_array_type :=
 );
 --###############################################################################
 
-constant current_timing     : video_timing_type := video_timings(5); -- 1920 x 1080 selected as current timing information
+constant current_timing     : video_timing_type := video_timings(4); -- 1920 x 1080 selected as current timing information
 
 signal RED          : natural range 0 to 255 := 0;
 signal GREEN        : natural range 0 to 255 := 0;
