@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <string.h>  // add this to get strcpy
 
 #define BRIDGE 0xC0000000
 #define BRIDGE_SPAN 0x3C000000
@@ -15,7 +16,8 @@ int main() {
 
 	uint32_t a = 0; // 32 bit value stored in memory, produced by fpga
 	char* virtual_base;
-	uint32_t* a_map;
+	// uint32_t* a_map;
+	char* a_map;
 
   	int fd = 0;
 
@@ -27,7 +29,7 @@ int main() {
 	}
   	printf("Opened /dev/mem successfully!\n");
 
-	virtual_base = mmap(NULL, BRIDGE_SPAN, PROT_READ | PROT_WRITE,
+	virtual_base = (char*)mmap(NULL, BRIDGE_SPAN, PROT_READ | PROT_WRITE,
                                MAP_SHARED, fd, BRIDGE);
 
 	close(fd); // safe to close fd after mmap has returned
@@ -37,13 +39,20 @@ int main() {
 		close(fd);
 		return -3;
 		}
-	a_map = (uint32_t *)(virtual_base + (OFFSET));
+	a_map = (char *)(virtual_base + (OFFSET));
 
-	printf("virtual_base: %08X\n", virtual_base);
-	printf("a_map: %08X\n", a_map);
+	// printf("virtual_base: %08X\n", virtual_base);
+	// printf("a_map: %08X\n", a_map);
 
-	a = *((uint32_t *) a_map); // map memory value to userspace variable
-	printf("%08X\n", a); // print variable
+	strcpy(a_map, "test_string"); // this is 12 characters (including null terminator) / 32 bit writes = 3 write commands
+
+
+	// writing command
+
+	
+	// reading command 
+	// a = *((uint32_t *) a_map); // map memory value to userspace variable
+	// printf("%08X\n", a); // print variable
 
 	// clean up by unmapping the memmory space
 	int result = 0;
