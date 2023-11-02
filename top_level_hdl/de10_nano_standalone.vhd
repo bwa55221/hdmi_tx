@@ -47,7 +47,14 @@ architecture rtl of de10_nano_standalone is
         -- ideally just update these lines any time the platform designer is updated
 
         port (
-            clk_clk                  : in    std_logic                     := '0';             --             clk.clk
+            clk_clk                             : in    std_logic                     := '0';             --                   clk.clk
+            hps_0_f2h_sdram0_data_address       : in    std_logic_vector(28 downto 0) := (others => '0'); -- hps_0_f2h_sdram0_data.address
+            hps_0_f2h_sdram0_data_burstcount    : in    std_logic_vector(7 downto 0)  := (others => '0'); --                      .burstcount
+            hps_0_f2h_sdram0_data_waitrequest   : out   std_logic;                                        --                      .waitrequest
+            hps_0_f2h_sdram0_data_readdata      : out   std_logic_vector(63 downto 0);                    --                      .readdata
+            hps_0_f2h_sdram0_data_readdatavalid : out   std_logic;                                        --                      .readdatavalid
+            hps_0_f2h_sdram0_data_read          : in    std_logic                     := '0';             --                      .read
+
             hps_0_h2f_reset_reset_n  : out   std_logic;                                        -- hps_0_h2f_reset.reset_n
             hps_bridge_waitrequest   : in    std_logic                     := '0';             --      hps_bridge.waitrequest
             hps_bridge_readdata      : in    std_logic_vector(63 downto 0) := (others => '0'); --                .readdata
@@ -80,19 +87,20 @@ architecture rtl of de10_nano_standalone is
         );
     end component;
 	 
-	component avmm_slave is
+	component sdram_control is
 	     port(
-			  WAIT_REQ        : out std_logic;
-			  READ_DATA       : out std_logic_vector(63 downto 0);
-			  READ_DATA_VALID : out std_logic;
+			--   WAIT_REQ        : out std_logic;
+			--   READ_DATA       : out std_logic_vector(63 downto 0);
+			--   READ_DATA_VALID : out std_logic;
 
-			  CLK			  : in std_logic;
-			  WRITE_DATA      : in std_logic_vector(63 downto 0);
-			  ADDRESS         : in std_logic_vector(9 downto 0);
-			  WRITE_CMD       : in std_logic;
-			  READ_CMD        : in std_logic;
-			  BYTE_ENABLE     : in std_logic_vector(7 downto 0);
-			  DEBUG_ACCESS    : in std_logic
+			CLK			  : in std_logic;
+			--   WRITE_DATA      : in std_logic_vector(63 downto 0);
+			--   ADDRESS         : in std_logic_vector(9 downto 0);
+			WRITE_CMD       : in std_logic;
+			--   READ_CMD        : in std_logic;
+			--   BYTE_ENABLE     : in std_logic_vector(7 downto 0);
+			--   DEBUG_ACCESS    : in std_logic
+            DO_SDRAM_READ   : out std_logic
 		 );
         end component;
 
@@ -135,6 +143,8 @@ signal h2s_byte_enable                                                          
 signal pixel_clock_interconnect         : std_logic;    -- define signals to connect hps, rgb_driver, and adv7513 configuration module
 signal transceiver_ready_interconnect   : std_logic;
 
+signal DO_SDRAM_READ_w  : std_logic; -- wire connecting to SDRAM control module
+
 -- signal RST_N        : std_logic;     -- toggle for use with reset counter vs RST_N button
 
 begin
@@ -167,33 +177,34 @@ soc0 : component soc_system
         memory_mem_we_n     => HPS_DDR3_WE_N,
 
         -- linking to avalon mm custom slave
-        hps_bridge_waitrequest      => h2s_wait_req,
-        hps_bridge_readdata         => h2s_read_data,
-        hps_bridge_readdatavalid    => h2s_read_dv,
-        hps_bridge_writedata        => h2s_write_data,
-        hps_bridge_address          => h2s_address,
+        -- hps_bridge_waitrequest      => h2s_wait_req,
+        -- hps_bridge_readdata         => h2s_read_data,
+        -- hps_bridge_readdatavalid    => h2s_read_dv,
+        -- hps_bridge_writedata        => h2s_write_data,
+        -- hps_bridge_address          => h2s_address,
         hps_bridge_write            => h2s_write_cmd,
-        hps_bridge_read             => h2s_read_cmd,
-        hps_bridge_byteenable       => h2s_byte_enable,
-        hps_bridge_debugaccess      => h2s_debug_access,
+        -- hps_bridge_read             => h2s_read_cmd,
+        -- hps_bridge_byteenable       => h2s_byte_enable,
+        -- hps_bridge_debugaccess      => h2s_debug_access,
 
         -- linking pll output to rgb_driver
         vid_clk_165mhz_clk          => pixel_clock_interconnect
     );
 	 
-slave0	: component avmm_slave
+sdramctrl0	: component sdram_control
 			port map (
-			  WAIT_REQ          => h2s_wait_req,
-			  READ_DATA         => h2s_read_data,
-			  READ_DATA_VALID   => h2s_read_dv,
+			--   WAIT_REQ          => h2s_wait_req,
+			--   READ_DATA         => h2s_read_data,
+			--   READ_DATA_VALID   => h2s_read_dv,
 
 			  CLK			    => FPGA_CLK1_50,
-			  WRITE_DATA        => h2s_write_data,
-			  ADDRESS           => h2s_address,
+			--   WRITE_DATA        => h2s_write_data,
+			--   ADDRESS           => h2s_address,
 			  WRITE_CMD         => h2s_write_cmd,
-			  READ_CMD          => h2s_read_cmd,
-			  BYTE_ENABLE       => h2s_byte_enable,
-			  DEBUG_ACCESS      => h2s_debug_access
+              DO_SDRAM_READ     => DO_SDRAM_READ_w
+			--   READ_CMD          => h2s_read_cmd,
+			--   BYTE_ENABLE       => h2s_byte_enable,
+			--   DEBUG_ACCESS      => h2s_debug_access
             );
 	
 adv0    : component adv7513_driver

@@ -1,0 +1,9 @@
+1. hdmi tx working with rgb pattern generation
+2. need to find a place to hold frames that can be buffered and generated through the hps
+likely that this needs to be the HPS SDRAM. 
+
+10/31/23: try to compile pattern design in 640x480 mode (least amount of pixels required)
+
+640*480 = 307.2k pixels * 24 bits per pixel * 60 fps = 442.368 Mbps
+
+1 frame of pixels is 307.2k * 24 * 1 = 7,372,800 bits = 921.6 kBytes

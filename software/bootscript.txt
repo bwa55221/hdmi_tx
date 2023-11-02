@@ -1,0 +1,1 @@
+setenv mmcboot ‘setenv bootargs console=ttyS0,115200 mem=512M root=${mmcroot} rw rootwait;bootz ${loadaddr} - ${fdtaddr}’
