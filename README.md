@@ -24,4 +24,7 @@ Software and HDL that enable streaming of HDMI from DE-10 Nano
 
 
 ### Notes
-* ```mkimage``` is required to compile the custom bootscript from .txt into a .scr file usable by the SSBL
+* ```mkimage``` is required to compile the custom bootscript from .txt into a .scr file usable by the SSBL. This can be done with
+```
+sudo apt-get install u-boot-tools
+```
