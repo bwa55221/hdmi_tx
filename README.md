@@ -21,3 +21,7 @@ Software and HDL that enable streaming of HDMI from DE-10 Nano
 3. Add bootparam in ext_linux.conf (SD card image generation script) to limit kernel to 512 Mb of RAM
 4. Develop C userspace application to test RW via the H2F bridge, write simple HDL module to trigger when a bridge Avalon write command is asseted by the userspace application, confirm via Signal Tap
 5. Write C application to copy test image binary to SDRAM (still not broken down in to RGB data format, just used to verify we can write data here and read via FPGA SDRAM interface)
+
+
+### Notes
+* ```mkimage``` is required to compile the custom bootscript from .txt into a .scr file usable by the SSBL
