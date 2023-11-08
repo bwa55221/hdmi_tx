@@ -17,6 +17,7 @@ Software and HDL that enable streaming of HDMI from DE-10 Nano
 
 ### Software Development Procedure
 1. See other repo, ```de10_nano``` that is used to house the custom Linux distribution built for test and experiment
-2. Add bootparam in ext_linux.conf (SD card image generation script) to limit kernel to 512 Mb of RAM
-3. Develop C userspace application to test RW via the H2F bridge, write simple HDL module to trigger when a bridge Avalon write command is asseted by the userspace application, confirm via Signal Tap
-4. Write C application to copy test image binary to SDRAM (still not broken down in to RGB data format, just used to verify we can write data here and read via FPGA SDRAM interface)
+2. Enable F2H SDRAM bridge via modification to child device tree
+3. Add bootparam in ext_linux.conf (SD card image generation script) to limit kernel to 512 Mb of RAM
+4. Develop C userspace application to test RW via the H2F bridge, write simple HDL module to trigger when a bridge Avalon write command is asseted by the userspace application, confirm via Signal Tap
+5. Write C application to copy test image binary to SDRAM (still not broken down in to RGB data format, just used to verify we can write data here and read via FPGA SDRAM interface)
