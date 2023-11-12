@@ -28,3 +28,8 @@ Software and HDL that enable streaming of HDMI from DE-10 Nano
 ```
 sudo apt-get install u-boot-tools
 ```
+* See shell scripts in the ```software``` directory that can be used to compile the u-boot.scr and other build artifacts
+
+###  Useful Links
+* U-boot Documentation: https://u-boot.readthedocs.io/en/latest/develop/bootstd.html
+* RocketBoards Embedded Linux Guide: https://www.rocketboards.org/foswiki/Documentation/EmbeddedLinuxBeginnerSGuide
