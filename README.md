@@ -21,6 +21,7 @@ Software and HDL that enable streaming of HDMI from DE-10 Nano
 3. Add bootparam in ext_linux.conf (SD card image generation script) to limit kernel to 512 Mb of RAM
 4. Develop C userspace application to test RW via the H2F bridge, write simple HDL module to trigger when a bridge Avalon write command is asseted by the userspace application, confirm via Signal Tap
 5. Write C application to copy test image binary to SDRAM (still not broken down in to RGB data format, just used to verify we can write data here and read via FPGA SDRAM interface)
+6. Write custom bootscript that is used to configure the F2SDRAM bridge.
 
 ### Top Level HDL
 1. Instantiate the HPS in PD. Enable the F2H SDRAM peripheral and the H2F bridge. Export AVMM interfaces to fabric for RTL integration.
@@ -30,3 +31,9 @@ Software and HDL that enable streaming of HDMI from DE-10 Nano
 ```
 sudo apt-get install u-boot-tools
 ```
+* See shell scripts in the ```software``` directory that can be used to compile the u-boot.scr and other build artifacts
+
+###  Useful Links
+* U-boot Documentation: https://u-boot.readthedocs.io/en/latest/develop/bootstd.html
+* RocketBoards Embedded Linux Guide: https://www.rocketboards.org/foswiki/Documentation/EmbeddedLinuxBeginnerSGuide
+* SPL/Preloader Customization Guide: https://www.rocketboards.org/foswiki/view/Documentation/PreloaderUbootCustomization131
