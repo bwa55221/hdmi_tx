@@ -54,8 +54,10 @@ architecture rtl of de10_nano_standalone is
             hps_0_f2h_sdram0_data_readdata      : out   std_logic_vector(63 downto 0);                    --                      .readdata
             hps_0_f2h_sdram0_data_readdatavalid : out   std_logic;                                        --                      .readdatavalid
             hps_0_f2h_sdram0_data_read          : in    std_logic                     := '0';             --                      .read
-
-            hps_0_h2f_reset_reset_n  : out   std_logic;                                        -- hps_0_h2f_reset.reset_n
+            hps_0_f2h_sdram0_data_writedata     : in    std_logic_vector(63 downto 0) := (others => '0'); --                      .writedata
+            hps_0_f2h_sdram0_data_byteenable    : in    std_logic_vector(7 downto 0)  := (others => '0'); --                      .byteenable
+            hps_0_f2h_sdram0_data_write         : in    std_logic                     := '0';             --                      .write
+            hps_0_h2f_reset_reset_n             : out   std_logic;                                        --       hps_0_h2f_reset.reset_n
             hps_bridge_waitrequest   : in    std_logic                     := '0';             --      hps_bridge.waitrequest
             hps_bridge_readdata      : in    std_logic_vector(63 downto 0) := (others => '0'); --                .readdata
             hps_bridge_readdatavalid : in    std_logic                     := '0';             --                .readdatavalid
