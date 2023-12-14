@@ -25,6 +25,7 @@ Software and HDL that enable streaming of HDMI from DE-10 Nano
 
 ### Top Level HDL
 1. Instantiate the HPS in PD. Enable the F2H SDRAM peripheral and the H2F bridge. Export AVMM interfaces to fabric for RTL integration.
+2. F2SDRAM peripheral interface specifications can be set in PD, select AVMM bi-directional and 64 bit data bus width. Could have gone with a Read-Only interface here, but it might not hurt to have the abilityt to write back to the HPS SDRAM in the future.
 
 ### Notes
 * ```mkimage``` is required to compile the custom bootscript from .txt into a .scr file usable by the SSBL. This can be done with
